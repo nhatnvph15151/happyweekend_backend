@@ -18,18 +18,18 @@ const RomSchema = Schema({
     image:{
         type: [],
     },
-    price: {
-        type: Number,
-        // required: true,
-    },
+    price: [{
+        brand:Number,
+        title:String,
+        value:Number
+    }],
     description:{
         type: String,
         // required: true,
         minLength:5
     },
-    coc: {
-        type: Boolean,
-        default: false
+    status:{
+        type:Boolean
     },
     category:{
         type: ObjectId,
@@ -38,6 +38,10 @@ const RomSchema = Schema({
     date: {
         type: ObjectId,
         ref: "dateBooked"
+    },
+    facilities:{
+        type: ObjectId,
+        ref: "Facilities"
     }
 }, {timestamps: true})
 
