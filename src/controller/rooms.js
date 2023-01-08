@@ -1,8 +1,7 @@
 import Room from "../models/room"
 import Comment from "../models/comments"
 import slugify from "slugify"
-import imagesroom from "../models/imagesroom"
-import dateBooked from "../models/dateBooked"
+import DateBooked from "../models/dateBooked"
 
 export const creat = async (req, res) => {
     req.body.slug = slugify(req.body.name)
@@ -52,17 +51,55 @@ export const update = async (req, res) => {
     }
 }
 
-export const search = async (req, res) => {
-    const checkIn = req.query.dateFrom;
-    const checkOut = req.query.dateTo;
-    try {
-        const rooms = await dateBooked.find({
-            dateFrom: { $eq: checkIn },
-            dateTo: { $eq: checkOut }
-        }).exec()
-        res.json(rooms)
-    } catch (error) {
+// check trùng lặp thời gian
+function areTwoDateTimeRangesOverlapping(incommingDateTimeRange, existingDateTimeRange) {
+    return incommingDateTimeRange.start < existingDateTimeRange.end && incommingDateTimeRange.end > existingDateTimeRange.start
+}
 
+function areManyDateTimeRangesOverlapping(incommingDateTimeRange, existingDateTimeRanges) {
+    return existingDateTimeRanges.some((existingDateTimeRange) => areTwoDateTimeRangesOverlapping(incommingDateTimeRange, existingDateTimeRange))
+}
+  
+ 
+export const search = async (req, res) => {
+    const { checkInDate, checkOutDate } = req.body;
+
+    if (!checkInDate || !checkOutDate) {
+        res.json("vui lòng nhập thời gian checkin và checkout");
+        return;
+    }
+
+    try {
+        let result = [];
+
+        const listDateBooked = await DateBooked.find().exec();
+        const rooms = await Room.find().exec();
+
+        rooms.forEach(room => {
+            const dateBookedByRoom = listDateBooked.filter(item => item.room.toString() == room._id.toString());
+            if (!dateBookedByRoom.length) {
+                result.push(room);
+            } else {
+                const listDateByRoom = dateBookedByRoom.map(item => {
+                    return {
+                        start: new Date(item.dateFrom).getTime(),
+                        end: new Date(item.dateTo).getTime()
+                    };
+                });
+
+                // trạng thái phòng trống.
+                const status = areManyDateTimeRangesOverlapping({
+                    start: new Date(checkInDate).getTime(),
+                    end: new Date(checkOutDate).getTime()
+                }, listDateByRoom);
+
+                if (!status) result.push(room);
+            }
+        })
+
+        res.json(result);
+    } catch (error) {
+        res.status(404).json(error);
     }
 }
 
